@@ -1,0 +1,30 @@
+services:
+  garage:
+    image: dxflrs/garage:v0.9.0
+    container_name: garage_s3
+    restart: unless-stopped
+    ports:
+      - "3900:3900"
+      - "3902:3902"
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - ./garage_meta:/var/lib/garage/meta
+      - ./garage_data:/var/lib/garage/data
+    environment:
+      - RUST_LOG=garage=info
+  db:
+    image: postgres:15-alpine
+    container_name: cloud_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=cloud_admin
+      - POSTGRES_PASSWORD=super_duper_ahuet_kakoi_secret_pass
+      - POSTGRES_DB=cloud_storage
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+
