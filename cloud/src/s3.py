@@ -1,14 +1,17 @@
 import aioboto3
 from src.config import settings
 from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
+from typing import Any
 
 class S3Storage():
-    def __init__(self):
+    def __init__(self) -> None:
         self.session = aioboto3.Session()
         self.bucket_name = settings.S3_BUCKET_NAME
     
-    async def upload_file(self, file_bytes: bytes, object_key: str):
-        async with self.session.client("s3",
+    async def upload_file(self, file_bytes: bytes, object_key: str) -> None:
+        async with self.session.client(
+            "s3",
             endpoint_url=settings.S3_ENDPOINT_URL, 
             region_name=settings.S3_REGION_NAME,
             aws_access_key_id=settings.S3_ACCESS_KEY_ID,
@@ -21,7 +24,7 @@ class S3Storage():
                )
 
     @asynccontextmanager
-    async def download_file(self, object_key: str):
+    async def download_file(self, object_key: str) -> AsyncGenerator[Any, None]:
                 async with self.session.client("s3",
                     endpoint_url=settings.S3_ENDPOINT_URL, 
                     region_name=settings.S3_REGION_NAME,

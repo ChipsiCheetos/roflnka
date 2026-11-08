@@ -3,20 +3,20 @@ from fastapi import APIRouter, Depends, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from src.database import get_db
-from auth.schemas import FileResponse
+from auth.schemas import FileResponseSchema
 from src.s3 import S3Storage 
 from src.models import File
 
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-@router.post("/", response_model=FileResponse)
+@router.post("/")
 async def create_file(
     file: UploadFile = File(),
     max_downloads: int | None = Form(None),
     password: str | None = Form(None),
     db: AsyncSession = Depends(get_db)
-):
+) -> FileResponseSchema:
     file_bytes = await file.read()
     hash = hashlib.sha256(file_bytes).hexdigest()
     statement = select(File).where(File.sha256 == hash)

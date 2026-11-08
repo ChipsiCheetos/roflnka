@@ -2,23 +2,23 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
-class UserCreate:
+class UserCreateSchema(BaseModel):
     email: EmailStr
     password: str
 
-class UserResponse(BaseModel):
+class UserResponseSchema(BaseModel):
     id: int
     email: EmailStr
 
     model_config = {"from_attributes": True}
 
-class UserInProduct(BaseModel):
+class UserInProductSchema(BaseModel):
     id: int
     email: EmailStr
 
     model_config = {"from_attributes": True}
 
-class FIleCreate(BaseModel):
+class FIleCreateSchema(BaseModel):
     name: str
     size: int
     mimetype: str
@@ -27,12 +27,12 @@ class FIleCreate(BaseModel):
     max_downloads: int | None
     password: str | None
 
-class FileResponse(BaseModel):
+class FileResponseSchema(BaseModel):
     id: uuid.UUID
     checksum: str
     expires_at: datetime | None
     max_downloads: int
     download_count: int
     is_password_protected: bool
-    owner: UserInProduct
+    owner: UserInProductSchema
     
