@@ -1,13 +1,12 @@
-import hashlib
-from fastapi import APIRouter, Depends, UploadFile, Form
+from fastapi import APIRouter, Depends, UploadFile, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from src.database import get_db
 from auth.schemas import FileResponseSchema
-from src.s3 import S3Storage 
 from src.models import File
+from src.FIles.services import FileService
+import logging
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/files", tags=["files"])
 
 @router.post("/")
@@ -17,28 +16,17 @@ async def create_file(
     password: str | None = Form(None),
     db: AsyncSession = Depends(get_db)
 ) -> FileResponseSchema:
-    file_bytes = await file.read()
-    hash = hashlib.sha256(file_bytes).hexdigest()
-    statement = select(File).where(File.sha256 == hash)
-    result = await db.execute(statement)
-    existing_file = result.scalars().first()
-    
-    if not existing_file:
-        storage = S3Storage()
-        await storage.upload_file(file_bytes, hash)
+    try:
+        file_service = FileService(db)
+        return await file_service.register_file(file, max_downloads, password)
+    except Exception as e:
+        logger.exception(f"Error creating file resource: {file.filename}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred during file upload."
+        )
 
-    new_file_record = File(
-        original_name=file.filename,
-        sha256=hash,
-        size_bytes=len(file_bytes),
-        mime_type=file.content_type,
-        max_downloads=max_downloads,
-        is_password_protected=True if password else False,
-    )
-
-    db.add(new_file_record)
-    await db.commit()
-    await db.refresh(new_file_record)
-    return new_file_record
-
+@router.get("/{file_id}")
+async def download(file_id: int, db: AsyncSession = Depends(get_db)):
+    pass
 

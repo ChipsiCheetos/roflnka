@@ -1,7 +1,9 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import logging
 
 class Settings(BaseSettings):
+    FILE_CHUNK_SIZE: int = 1_048_576
     DATABASE_URL: str = Field(..., alias="DATABASE_URL")
     JWT_SECRET_KEY: str = Field(..., alias="JWT_SECRET_KEY")
     JWT_ALGORITHM: str = Field("HS256", alias="JWT_ALGORITHM")
@@ -18,4 +20,15 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("app.log")
+
+    ]
+)
+
 settings = Settings()
+logger = logging.getLogger(__name__)
