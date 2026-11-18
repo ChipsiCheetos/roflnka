@@ -1,8 +1,8 @@
 import pytest
 from httpx import AsyncClient
-from src.auth.schemas import FileResponseSchema
 
 pytestmark = pytest.mark.asyncio
+
 
 async def test_create_file_success(client: AsyncClient) -> None:
     file_payload = {"file": ("test.mp4", b"fake video content", "video/mp4")}
@@ -15,7 +15,8 @@ async def test_create_file_success(client: AsyncClient) -> None:
         "expires_at",
         "max_downloads",
         "download_count",
-        "owner"
+        "owner",
     }
     assert expected_keys.issubset(data.keys())
     assert data["is_password_protected"] is False
+

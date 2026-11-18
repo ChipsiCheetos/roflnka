@@ -1,8 +1,10 @@
-from src.database import Base
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Integer, String, DateTime, Boolean
 from datetime import datetime
 from uuid import UUID, uuid4
+
+from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+from src.database import Base
+
 
 class File(Base):
     __tablename__ = "files"
@@ -17,5 +19,3 @@ class File(Base):
     max_downloads: Mapped[int | None] = mapped_column(Integer, nullable=True)
     download_count: Mapped[int] = mapped_column(Integer, default=0)
     is_password_protected: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    

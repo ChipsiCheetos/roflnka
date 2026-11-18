@@ -1,6 +1,8 @@
+import logging
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import logging
+
 
 class Settings(BaseSettings):
     FILE_CHUNK_SIZE: int = 1_048_576
@@ -15,20 +17,16 @@ class Settings(BaseSettings):
     S3_REGION_NAME: str = Field("garage", alias="S3_REGION_NAME")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("app.log")
-
-    ]
+    handlers=[logging.StreamHandler(), logging.FileHandler("app.log")],
 )
 
 settings = Settings()
 logger = logging.getLogger(__name__)
+
