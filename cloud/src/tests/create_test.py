@@ -20,3 +20,7 @@ async def test_create_file_success(client: AsyncClient) -> None:
     assert expected_keys.issubset(data.keys())
     assert data["is_password_protected"] is False
 
+
+# TODO Сделать тест генерации ссылки на скачивание
+async def test_get_download_url_success(client: AsyncClient) -> None:
+    pass

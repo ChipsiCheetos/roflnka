@@ -1,9 +1,10 @@
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from auth.schemas import FileResponseSchema
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Form, HTTPException, UploadFile, Header
+from fastapi.responses import RedirectResponse
 from src.database import Dbsession
 from src.FIles.services import FileService
 from src.models import File
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 @router.post("/")
 async def create_file(
-    db: Annotated[AsyncSession, Depends(Dbsession)],
+    db: Dbsession,
     file: Annotated[UploadFile, File()],
     max_downloads: Annotated[int | None, Form()] = None,
     password: Annotated[str | None, Form()] = None,
@@ -31,5 +32,19 @@ async def create_file(
 
 
 @router.get("/{file_id}")
-async def download_file(file_id: int, db: Dbsession):
-    pass
+async def download_file(
+    db: Dbsession,
+    file_id: UUID,
+    password: Annotated[str | None, Header(alias="X-File-Password")] = None,
+) -> RedirectResponse:
+    try:
+        file_service = FileService(db)
+        presigned_url = await file_service.get_download_url(file_id, password)
+        return RedirectResponse(url=presigned_url, status_code=307)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(f"Error getting url for file_id: {file_id}")
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred during generating url"
+        )

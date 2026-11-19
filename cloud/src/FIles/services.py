@@ -1,19 +1,30 @@
 import hashlib
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, UploadFile
+from fastapi import Depends, HTTPException, UploadFile
+from pwdlib import PasswordHash
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from src.config import settings
 from src.database import get_db
 from src.models import File
 from src.storage import S3Storage
+
+password_hasher = PasswordHash.recommended()
 
 
 class FileService:
     def __init__(self, db: Annotated[AsyncSession, Depends(get_db)]) -> None:
         self.db = db
         self.storage = S3Storage()
+
+    def _verify_password(
+        self, plain_password: str, hashed_password: str | None
+    ) -> bool:
+        if not hashed_password:
+            return False
+        return password_hasher.verify(plain_password, hashed_password)
 
     async def _calculate_hash_and_size(self, file: UploadFile) -> tuple[str, int]:
         sha256_hash = hashlib.sha256()
@@ -53,3 +64,42 @@ class FileService:
         await self.db.refresh(new_file_record)
         return new_file_record
 
+    # TODO: Перевести детали ошибок
+    async def get_download_url(self, file_id: UUID, password: str | None = None) -> str:
+        statement = select(File).where(File.id == file_id)
+        result = await self.db.execute(statement)
+        file_record = result.scalars().first()
+
+        if file_record is None:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
+        if file_record.is_password_protected and (
+            not password
+            or not file_record.password_hash
+            or not password_hasher.verify(password, file_record.password_hash)
+        ):
+            raise HTTPException(status_code=401, detail="Неверный пароль")
+
+        if file_record.max_downloads is not None:
+            dec_statement = (
+                update(File)
+                .where(
+                    File.id == file_id,
+                    File.download_count < File.max_downloads,
+                )
+                .values(download_count=File.download_count + 1)
+            )
+            result = await self.db.execute(dec_statement)
+            if result.rowcount == 0:
+                raise HTTPException(status_code=403, detail="Лимит скачиваний исчерпан")
+            await self.db.commit()
+
+        presigned_url = await self.storage.create_presigned_url(
+            object_key=file_record.sha256, expiration=60
+        )
+
+        if presigned_url is None:
+            raise HTTPException(
+                status_code=502, detail="Не удалось сгенерировать ссылку для скачивания"
+            )
+        return presigned_url
