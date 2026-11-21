@@ -70,5 +70,20 @@ class S3Storage:
                     ExpiresIn=expiration,
                 )
             except ClientError:
-                logger.exception("Ошибка при работе с S3: %s")
+                logger.exception("Error working with S3")
                 return None
+
+    async def delete_file(self, object_key: str) -> None:
+        async with self.session.client(
+            "s3",
+            endpoint_url=settings.S3_ENDPOINT_URL,
+            region_name=settings.S3_REGION_NAME,
+            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+        ) as client:
+            try:
+                await client.delete_object(Bucket=self.bucket_name, Key=object_key)
+            except ClientError:
+                logger.exception(
+                    "Unable to delete file %s fron S3 during backup", object_key
+                )

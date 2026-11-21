@@ -32,14 +32,14 @@ async def init_model() -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
 
-async def test_get_db() -> AsyncGenerator[AsyncSession, None]:
+async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with TestingSessionLocal() as session:
         yield session
 
 
 @pytest.fixture
 async def client() -> AsyncGenerator[any, None]:
-    app.dependency_overrides[get_db] = test_get_db
+    app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
@@ -54,4 +54,16 @@ def mock_s3_upload(monkeypatch) -> None:
     async def mock_upload(*args, **kwargs) -> None:
         return None
 
+    async def mock_presigned_url(*args, **kwargs) -> str:
+        return "https://s3.test"
+
     monkeypatch.setattr(S3Storage, "upload_file", mock_upload)
+    monkeypatch.setattr(S3Storage, "create_presigned_url", mock_presigned_url)
+
+
+@pytest.fixture
+async def uploaded_file(client: AsyncClient) -> dict:
+    file_payload = {"file": ("test.mp4", b"fake video content", "video/mp4")}
+    response = await client.post("/files/", files=file_payload)
+    assert response.status_code == 200
+    return response.json()

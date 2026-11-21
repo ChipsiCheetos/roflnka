@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from src.config import setup_logging
 from src.database import init_model
 from src.router.files import router as files_router
+
+setup_logging()
 
 
 @asynccontextmanager
@@ -24,4 +27,3 @@ def start_app() -> None:
 
 if __name__ == "__main__":
     start_app()
-

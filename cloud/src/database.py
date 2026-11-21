@@ -8,9 +8,9 @@ from src.config import settings
 
 DATABASE_URL = settings.DATABASE_URL
 
-engine = create_async_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
 
-asyncSession = async_sessionmaker(
+async_session_maker = async_sessionmaker(
     bind=engine, class_=AsyncSession, expire_on_commit=False
 )
 
@@ -20,15 +20,15 @@ class Base(DeclarativeBase):
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with asyncSession() as session:
+    async with async_session_maker() as session:
         yield session
 
 
 async def init_model() -> None:
     async with engine.begin() as conn:
-        from src.models import Base
+        import src.models  # noqa: F401
 
         await conn.run_sync(Base.metadata.create_all)
 
 
-Dbsession = Annotated[AsyncSession, Depends(get_db)]
+DbSession = Annotated[AsyncSession, Depends(get_db)]

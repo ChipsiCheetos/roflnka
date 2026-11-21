@@ -46,9 +46,11 @@ class FileService:
         result = await self.db.execute(statement)
         existing_file = result.scalars().first()
 
+        uploaded_to_s3 = False
         if not existing_file:
             file_bytes = await file.read()
             await self.storage.upload_file(file_bytes, file_hash)
+            uploaded_to_s3 = True
 
         new_file_record = File(
             original_name=file.filename,
@@ -56,12 +58,18 @@ class FileService:
             size_bytes=size_bytes,
             mime_type=file.content_type,
             max_downloads=max_downloads,
-            is_password_protected=bool(password),
+            password_hash=password_hasher.hash(password) if password else None,
         )
 
         self.db.add(new_file_record)
-        await self.db.commit()
-        await self.db.refresh(new_file_record)
+        try:
+            await self.db.commit()
+            await self.db.refresh(new_file_record)
+        except Exception:
+            await self.db.rollback()
+            if uploaded_to_s3:
+                await self.storage.delete_file(file_hash)
+            raise
         return new_file_record
 
     async def get_download_url(self, file_id: UUID, password: str | None = None) -> str:
@@ -74,8 +82,7 @@ class FileService:
 
         if file_record.is_password_protected and (
             not password
-            or not file_record.password_hash
-            or not password_hasher.verify(password, file_record.password_hash)
+            or not self._verify_password(password, file_record.password_hash)
         ):
             raise HTTPException(status_code=401, detail="invalid password")
 
@@ -94,7 +101,9 @@ class FileService:
             await self.db.commit()
 
         presigned_url = await self.storage.create_presigned_url(
-            object_key=file_record.sha256, expiration=60
+            object_key=file_record.sha256,
+            filename=file_record.original_name,
+            expiration=60,
         )
 
         if presigned_url is None:

@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import BigInteger, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 from src.database import Base
 
@@ -12,10 +12,18 @@ class File(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     original_name: Mapped[str] = mapped_column(String(255))
     sha256: Mapped[str] = mapped_column(String(64), index=True)
-    size_bytes: Mapped[int] = mapped_column(Integer)
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
     mime_type: Mapped[str] = mapped_column(String(255), index=True)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     max_downloads: Mapped[int | None] = mapped_column(Integer, nullable=True)
     download_count: Mapped[int] = mapped_column(Integer, default=0)
-    is_password_protected: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    @property
+    def is_password_protected(self) -> bool:
+        return self.password_hash is not None
