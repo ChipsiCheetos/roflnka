@@ -53,7 +53,7 @@ class S3Storage:
         }
         if filename:
             encoded_name = quote(filename)
-            params["ResponseContentDispostition"] = (
+            params["ResponseContentDisposition"] = (
                 f"attachment; filename*=UTF-8''{encoded_name}"
             )
         async with self.session.client(
