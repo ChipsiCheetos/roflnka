@@ -1,6 +1,8 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
+from urllib.parse import quote
 
 import aioboto3
 from botocore.exceptions import ClientError
@@ -27,7 +29,7 @@ class S3Storage:
             )
 
     @asynccontextmanager
-    async def download_file(self, object_key: str) -> AsyncGenerator[any, None]:
+    async def download_file(self, object_key: str) -> AsyncGenerator[Any, None]:
         async with self.session.client(
             "s3",
             endpoint_url=settings.S3_ENDPOINT_URL,
@@ -42,10 +44,18 @@ class S3Storage:
     async def create_presigned_url(
         self,
         object_key: str,
-        fields: dict | None = None,
-        conditions: list | None = None,
+        filename: str | None = None,
         expiration: int = 3600,
     ) -> str | None:
+        params = {
+            "Bucket": self.bucket_name,
+            "Key": object_key,
+        }
+        if filename:
+            encoded_name = quote(filename)
+            params["ResponseContentDispostition"] = (
+                f"attachment; filename*=UTF-8''{encoded_name}"
+            )
         async with self.session.client(
             "s3",
             endpoint_url=settings.S3_ENDPOINT_URL,
@@ -54,15 +64,11 @@ class S3Storage:
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
         ) as client:
             try:
-                response = await client.generate_presigned_url(
+                return await client.generate_presigned_url(
                     "get_object",
-                    Params={
-                        "Bucket": self.bucket_name,
-                        "Key": object_key,
-                    },
+                    Params=params,
                     ExpiresIn=expiration,
                 )
             except ClientError:
                 logger.exception("Ошибка при работе с S3: %s")
                 return None
-            return response

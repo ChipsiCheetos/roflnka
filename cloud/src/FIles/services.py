@@ -64,21 +64,20 @@ class FileService:
         await self.db.refresh(new_file_record)
         return new_file_record
 
-    # TODO: Перевести детали ошибок
     async def get_download_url(self, file_id: UUID, password: str | None = None) -> str:
         statement = select(File).where(File.id == file_id)
         result = await self.db.execute(statement)
         file_record = result.scalars().first()
 
         if file_record is None:
-            raise HTTPException(status_code=404, detail="Файл не найден")
+            raise HTTPException(status_code=404, detail="File not found")
 
         if file_record.is_password_protected and (
             not password
             or not file_record.password_hash
             or not password_hasher.verify(password, file_record.password_hash)
         ):
-            raise HTTPException(status_code=401, detail="Неверный пароль")
+            raise HTTPException(status_code=401, detail="invalid password")
 
         if file_record.max_downloads is not None:
             dec_statement = (
@@ -91,7 +90,7 @@ class FileService:
             )
             result = await self.db.execute(dec_statement)
             if result.rowcount == 0:
-                raise HTTPException(status_code=403, detail="Лимит скачиваний исчерпан")
+                raise HTTPException(status_code=403, detail="Download limit reached")
             await self.db.commit()
 
         presigned_url = await self.storage.create_presigned_url(
@@ -100,6 +99,16 @@ class FileService:
 
         if presigned_url is None:
             raise HTTPException(
-                status_code=502, detail="Не удалось сгенерировать ссылку для скачивания"
+                status_code=502, detail="Unable to generate download link"
             )
         return presigned_url
+
+    async def get_single(self, file_id: UUID) -> File:
+        statement = select(File).where(File.id == file_id)
+        result = await self.db.execute(statement)
+        file_search = result.scalar_one_or_none()
+
+        if file_search is None:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        return file_search

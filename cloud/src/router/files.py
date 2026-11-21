@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from auth.schemas import FileResponseSchema
-from fastapi import APIRouter, Form, HTTPException, UploadFile, Header
+from fastapi import APIRouter, Form, Header, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse
 from src.database import Dbsession
 from src.FIles.services import FileService
@@ -48,3 +48,9 @@ async def download_file(
         raise HTTPException(
             status_code=500, detail="An internal error occurred during generating url"
         )
+
+
+@router.get("/{file_id}/info")
+async def get_file_info(file_id: UUID, db: Dbsession) -> FileResponseSchema:
+    file_service = FileService(db)
+    return await file_service.get_single(file_id)

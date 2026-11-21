@@ -23,16 +23,6 @@ class UserInProductSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class FIleCreateSchema(BaseModel):
-    name: str
-    size: int
-    mimetype: str
-    checksum: str
-    duration_seconds: int | None = None
-    max_downloads: int | None
-    password: str | None
-
-
 class FileResponseSchema(BaseModel):
     id: uuid.UUID
     checksum: str = Field(validation_alias="sha256")
@@ -43,4 +33,3 @@ class FileResponseSchema(BaseModel):
     owner: UserInProductSchema | str | None = (
         None  # ВРЕМЕННЫЙ ВАРИАНТ КОГДА ДОБАВЯТ АУТЕНТИФИКАЦИЮ УБРАТЬ!!!
     )
-

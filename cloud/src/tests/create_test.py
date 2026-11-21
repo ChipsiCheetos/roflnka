@@ -1,9 +1,8 @@
 import pytest
 from httpx import AsyncClient
 
-pytestmark = pytest.mark.asyncio
 
-
+@pytest.mark.asyncio
 async def test_create_file_success(client: AsyncClient) -> None:
     file_payload = {"file": ("test.mp4", b"fake video content", "video/mp4")}
     response = await client.post("/files/", files=file_payload)
@@ -21,6 +20,25 @@ async def test_create_file_success(client: AsyncClient) -> None:
     assert data["is_password_protected"] is False
 
 
-# TODO Сделать тест генерации ссылки на скачивание
+@pytest.mark.asyncio
 async def test_get_download_url_success(client: AsyncClient) -> None:
-    pass
+    file_payload = {"file": ("test.mp4", b"fake video content", "video/mp4")}
+    create_response = await client.post("/files/", files=file_payload)
+    assert create_response.status_code == 200
+    file_id = create_response.json()["id"]
+
+    response = await client.get(f"/files/{file_id}")
+
+    assert response.status_code == 307
+    assert "location" in response.headers
+
+
+@pytest.mark.asyncio
+async def test_get_single(client: AsyncClient) -> None:
+    file_payload = {"file": ("test.mp4", b"fake video content", "video/mp4")}
+    create_response = await client.post("/files/", files=file_payload)
+    assert create_response.status_code == 200
+    file_id = create_response.json()["id"]
+
+    response = await client.get(f"/files/{file_id}/info")
+    assert response.status_code == 200
