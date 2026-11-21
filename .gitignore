@@ -180,4 +180,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-src/.env
+.env
+garage_data/
+garage_meta/
+pytest.ini 
