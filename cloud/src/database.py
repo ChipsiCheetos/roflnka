@@ -8,7 +8,9 @@ from src.config import settings
 
 DATABASE_URL = settings.DATABASE_URL
 
-engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.DATABASE_URL.get_secret_value(), pool_pre_ping=True
+)
 
 async_session_maker = async_sessionmaker(
     bind=engine, class_=AsyncSession, expire_on_commit=False

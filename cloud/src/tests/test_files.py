@@ -33,3 +33,11 @@ async def test_get_download_url_success(
 async def test_get_single(client: AsyncClient, uploaded_file: dict) -> None:
     response = await client.get(f"/files/{uploaded_file['id']}/info")
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_file_success(client: AsyncClient, uploaded_file: dict) -> None:
+    response = await client.delete(f"/files/{uploaded_file['id']}")
+    assert response.status_code == 200
+    get_response = await client.get(f"/files/{uploaded_file['id']}")
+    assert get_response.status_code == 404

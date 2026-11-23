@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from auth.schemas import FileResponseSchema
+from auth.schemas import FileResponseSchema, StatusResponseSchema
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse
 from src.database import DbSession
@@ -55,3 +55,13 @@ async def download_file(
 async def get_file_info(file_id: UUID, db: DbSession) -> FileResponseSchema:
     file_service = FileService(db)
     return await file_service.get_single(file_id)
+
+
+@router.delete("/{file_id}")
+async def delete_file(
+    db: DbSession,
+    file_id: UUID,
+    password: Annotated[str | None, Header(alias="X-File-Password")] = None,
+) -> StatusResponseSchema:
+    file_service = FileService(db)
+    return await file_service.file_deletion(file_id, password)

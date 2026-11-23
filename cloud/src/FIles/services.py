@@ -121,3 +121,25 @@ class FileService:
             raise HTTPException(status_code=404, detail="File not found")
 
         return file_search
+
+    async def file_deletion(
+        self, file_id: UUID, password: str | None = None
+    ) -> dict[str, str]:
+        statement = select(File).where(File.id == file_id)
+        result = await self.db.execute(statement)
+        file_record = result.scalars().first()
+
+        if file_record is None:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if file_record.is_password_protected and (
+            not password
+            or not self._verify_password(password, file_record.password_hash)
+        ):
+            raise HTTPException(status_code=401, detail="invalid password")
+
+        await self.db.delete(file_record)
+        await self.db.flush()
+        await self.storage.delete_file(file_record.sha256)
+        await self.db.commit()
+        return {"status": "deleted"}

@@ -33,3 +33,7 @@ class FileResponseSchema(BaseModel):
     owner: UserInProductSchema | str | None = (
         None  # ВРЕМЕННЫЙ ВАРИАНТ КОГДА ДОБАВЯТ АУТЕНТИФИКАЦИЮ УБРАТЬ!!!
     )
+
+
+class StatusResponseSchema(BaseModel):
+    status: str = "ok"
