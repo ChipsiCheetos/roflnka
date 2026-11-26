@@ -41,3 +41,14 @@ async def test_delete_file_success(client: AsyncClient, uploaded_file: dict) -> 
     assert response.status_code == 200
     get_response = await client.get(f"/files/{uploaded_file['id']}")
     assert get_response.status_code == 404
+
+
+# TODO сделать тесты регистрации и логина
+@pytest.mark.asyncio
+async def test_user_registration_success(client: AsyncClient) -> None:
+    pass
+
+
+@pytest.mark.asyncio
+async def test_user_login_success(client: AsyncClient) -> None:
+    pass

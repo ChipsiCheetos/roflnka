@@ -1,26 +1,28 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreateSchema(BaseModel):
     email: EmailStr
     password: str
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserResponseSchema(BaseModel):
-    id: int
+    id: uuid.UUID
     email: EmailStr
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserInProductSchema(BaseModel):
     id: int
     email: EmailStr
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FileResponseSchema(BaseModel):

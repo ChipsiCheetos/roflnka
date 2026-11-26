@@ -6,6 +6,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 from src.database import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(length=255), nullable=False)
+
+
 class File(Base):
     __tablename__ = "files"
 

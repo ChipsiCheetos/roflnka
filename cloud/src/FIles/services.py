@@ -3,28 +3,21 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, UploadFile
-from pwdlib import PasswordHash
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.auth.schemas import FileResponseSchema, StatusResponseSchema
+from src.auth.security import PasswordService
 from src.config import settings
 from src.database import get_db
 from src.models import File
 from src.storage import S3Storage
-
-password_hasher = PasswordHash.recommended()
 
 
 class FileService:
     def __init__(self, db: Annotated[AsyncSession, Depends(get_db)]) -> None:
         self.db = db
         self.storage = S3Storage()
-
-    def _verify_password(
-        self, plain_password: str, hashed_password: str | None
-    ) -> bool:
-        if not hashed_password:
-            return False
-        return password_hasher.verify(plain_password, hashed_password)
+        self.password_service = PasswordService()
 
     async def _calculate_hash_and_size(self, file: UploadFile) -> tuple[str, int]:
         sha256_hash = hashlib.sha256()
@@ -40,7 +33,7 @@ class FileService:
         file: UploadFile,
         max_downloads: int | None,
         password: str | None,
-    ) -> File:
+    ) -> FileResponseSchema:
         file_hash, size_bytes = await self._calculate_hash_and_size(file)
         statement = select(File).where(File.sha256 == file_hash)
         result = await self.db.execute(statement)
@@ -58,7 +51,9 @@ class FileService:
             size_bytes=size_bytes,
             mime_type=file.content_type,
             max_downloads=max_downloads,
-            password_hash=password_hasher.hash(password) if password else None,
+            password_hash=await self.password_service.get_password_hash(password)
+            if password
+            else None,
         )
 
         self.db.add(new_file_record)
@@ -70,7 +65,7 @@ class FileService:
             if uploaded_to_s3:
                 await self.storage.delete_file(file_hash)
             raise
-        return new_file_record
+        return FileResponseSchema.model_validate(new_file_record)
 
     async def get_download_url(self, file_id: UUID, password: str | None = None) -> str:
         statement = select(File).where(File.id == file_id)
@@ -82,7 +77,9 @@ class FileService:
 
         if file_record.is_password_protected and (
             not password
-            or not self._verify_password(password, file_record.password_hash)
+            or not await self.password_service.verify_password(
+                password, file_record.password_hash
+            )
         ):
             raise HTTPException(status_code=401, detail="invalid password")
 
@@ -94,9 +91,10 @@ class FileService:
                     File.download_count < File.max_downloads,
                 )
                 .values(download_count=File.download_count + 1)
+                .returning(File.id)
             )
             result = await self.db.execute(dec_statement)
-            if result.rowcount == 0:
+            if result.scalar_one_or_none() is None:
                 raise HTTPException(status_code=403, detail="Download limit reached")
             await self.db.commit()
 
@@ -112,7 +110,7 @@ class FileService:
             )
         return presigned_url
 
-    async def get_single(self, file_id: UUID) -> File:
+    async def get_single(self, file_id: UUID) -> FileResponseSchema:
         statement = select(File).where(File.id == file_id)
         result = await self.db.execute(statement)
         file_search = result.scalar_one_or_none()
@@ -120,11 +118,11 @@ class FileService:
         if file_search is None:
             raise HTTPException(status_code=404, detail="File not found")
 
-        return file_search
+        return FileResponseSchema.model_validate(file_search)
 
     async def file_deletion(
         self, file_id: UUID, password: str | None = None
-    ) -> dict[str, str]:
+    ) -> StatusResponseSchema:
         statement = select(File).where(File.id == file_id)
         result = await self.db.execute(statement)
         file_record = result.scalars().first()
@@ -134,7 +132,9 @@ class FileService:
 
         if file_record.is_password_protected and (
             not password
-            or not self._verify_password(password, file_record.password_hash)
+            or not await self.password_service.verify_password(
+                password, file_record.password_hash
+            )
         ):
             raise HTTPException(status_code=401, detail="invalid password")
 
@@ -142,4 +142,4 @@ class FileService:
         await self.db.flush()
         await self.storage.delete_file(file_record.sha256)
         await self.db.commit()
-        return {"status": "deleted"}
+        return StatusResponseSchema(status="deleted")
