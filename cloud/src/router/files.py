@@ -2,11 +2,12 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from auth.schemas import FileResponseSchema, StatusResponseSchema
 from fastapi import APIRouter, File, Form, Header, UploadFile
 from fastapi.responses import RedirectResponse
+from src.auth.schemas import FileResponseSchema, StatusResponseSchema
 from src.database import DbSession
-from src.files.services import FileService
+from src.files.file_services import FileService
+from src.router.users import CurrentUserDep
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/files", tags=["files"])
@@ -16,12 +17,15 @@ router = APIRouter(prefix="/files", tags=["files"])
 @router.post("/")
 async def create_file(
     db: DbSession,
+    current_user: CurrentUserDep,
     file: Annotated[UploadFile, File()],
     max_downloads: Annotated[int | None, Form()] = None,
     password: Annotated[str | None, Form()] = None,
 ) -> FileResponseSchema:
     file_service = FileService(db)
-    return await file_service.register_file(file, max_downloads, password)
+    return await file_service.register_file(
+        file, max_downloads, password, current_user.id
+    )
 
 
 @router.get("/{file_id}")
@@ -45,7 +49,8 @@ async def get_file_info(file_id: UUID, db: DbSession) -> FileResponseSchema:
 async def delete_file(
     db: DbSession,
     file_id: UUID,
+    current_user: CurrentUserDep,
     password: Annotated[str | None, Header(alias="X-File-Password")] = None,
 ) -> StatusResponseSchema:
     file_service = FileService(db)
-    return await file_service.file_deletion(file_id, password)
+    return await file_service.file_deletion(file_id, current_user.id, password)

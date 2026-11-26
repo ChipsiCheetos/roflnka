@@ -1,17 +1,19 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.database import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, index=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, index=True, default=uuid4)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(length=255), nullable=False)
+
+    files = relationship("File", back_populates="owner")
 
 
 class File(Base):
@@ -31,6 +33,8 @@ class File(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     max_downloads: Mapped[int | None] = mapped_column(Integer, nullable=True)
     download_count: Mapped[int] = mapped_column(Integer, default=0)
+    owner_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    owner = relationship("User", back_populates="files", lazy="selectin")
 
     @property
     def is_password_protected(self) -> bool:

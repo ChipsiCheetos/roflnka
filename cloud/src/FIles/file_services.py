@@ -33,6 +33,7 @@ class FileService:
         file: UploadFile,
         max_downloads: int | None,
         password: str | None,
+        owner_id: UUID,
     ) -> FileResponseSchema:
         file_hash, size_bytes = await self._calculate_hash_and_size(file)
         statement = select(File).where(File.sha256 == file_hash)
@@ -54,6 +55,7 @@ class FileService:
             password_hash=await self.password_service.get_password_hash(password)
             if password
             else None,
+            owner_id=owner_id,
         )
 
         self.db.add(new_file_record)
@@ -121,7 +123,7 @@ class FileService:
         return FileResponseSchema.model_validate(file_search)
 
     async def file_deletion(
-        self, file_id: UUID, password: str | None = None
+        self, file_id: UUID, owner_id: UUID, password: str | None = None
     ) -> StatusResponseSchema:
         statement = select(File).where(File.id == file_id)
         result = await self.db.execute(statement)
@@ -129,6 +131,9 @@ class FileService:
 
         if file_record is None:
             raise HTTPException(status_code=404, detail="File not found")
+
+        if file_record.owner_id != owner_id:
+            raise HTTPException(status_code=403, detail="Not enough permissions")
 
         if file_record.is_password_protected and (
             not password
